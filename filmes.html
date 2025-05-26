@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Arquivo M3U - Detalhes TMDB</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            line-height: 1.5;
+        }
+        .top-bar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        .top-bar h1 {
+            margin: 0;
+            font-size: 1.7em;
+            font-weight: 500;
+        }
+
+        .genre-filter-bar {
+            background-color: #ffffff;
+            padding: 10px 15px;
+            text-align: center;
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 1px solid #e0e0e0;
+            overflow-x: auto; 
+            white-space: nowrap; 
+        }
+        .genre-filter-bar button {
+            margin: 5px 8px;
+            padding: 8px 18px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #ced4da;
+            border-radius: 20px;
+            background-color: #f8f9fa;
+            color: #495057;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .genre-filter-bar button:hover {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+        .genre-filter-bar button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.1rem rgba(0,123,255,.25);
+        }
+        .genre-filter-bar button:focus {
+            outline: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 25px auto;
+            padding: 0 25px 25px 25px;
+            background-color: #fff;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 2px dashed #ced4da;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            margin-top: 20px;
+        }
+        .upload-section label {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 1.15em;
+            color: #343a40;
+        }
+        input[type="file"] {
+            padding: 12px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            background-color: #fff;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-size: 0.95em;
+        }
+        input[type="file"]:hover {
+            border-color: #007bff;
+        }
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+
+        .section-title {
+            font-size: 1.6em;
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 30px;
+        }
+
+        .filme-card {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
+        }
+        .filme-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+        }
+
+        .filme-poster {
+            width: 100%;
+            padding-top: 140%;
+            position: relative;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .filme-poster img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .filme-poster .poster-placeholder {
+            font-size: 0.85em;
+            color: #6c757d;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .filme-card-content {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .filme-card-titulo {
+            font-size: 1.05em;
+            font-weight: 600;
+            color: #212529;
+            margin: 0 0 10px 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 2.5em;
+        }
+        /* Botão "Detalhes" no card */
+        .filme-card-details-button {
+            display: block;
+            background-color: #6c757d; /* Cinza secundário */
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+            text-decoration: none;
+            font-weight: 500;
+            border-radius: 6px;
+            margin-top: auto;
+            transition: background-color 0.2s ease;
+            font-size: 0.9em;
+            cursor: pointer; /* Adicionado cursor pointer */
+        }
+        .filme-card-details-button:hover {
+            background-color: #5a6268;
+        }
+
+        .status-message {
+            text-align: center;
+            margin-top: 30px;
+            padding: 18px;
+            border-radius: 8px;
+            font-size: 1.1em;
+        }
+        .error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .no-content { color: #0c5460; background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        .processing { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+
+        /* Estilos do Modal (Popup) */
+        .modal {
+            display: none; /* Oculto por padrão */
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); /* Fundo escurecido */
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            align-items: center; /* Para centralizar verticalmente */
+            justify-content: center; /* Para centralizar horizontalmente */
+        }
+        .modal.show {
+            display: flex; /* Alterado para flex para centralização */
+            opacity: 1;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 25px 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+            width: 90%;
+            max-width: 750px; /* Largura máxima do modal */
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s ease-in-out;
+            max-height: 90vh; /* Altura máxima, permite scroll interno */
+            overflow-y: auto; /* Scroll se conteúdo for maior */
+        }
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+        .modal-close-button {
+            color: #aaa;
+            position: absolute;
+            top: 12px;
+            right: 20px;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close-button:hover,
+        .modal-close-button:focus {
+            color: #333;
+        }
+        #modalMovieInfo {
+            display: flex; /* Layout flex para poster e texto */
+            gap: 20px; /* Espaço entre poster e texto */
+        }
+        #modalMovieInfo .poster-column {
+            flex-shrink: 0; /* Impede que a coluna do poster encolha */
+        }
+        #modalMovieInfo img.modal-poster {
+            max-width: 200px; /* Tamanho do poster no modal */
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        #modalMovieInfo .details-column {
+            flex-grow: 1; /* Coluna de detalhes ocupa o espaço restante */
+        }
+        #modalMovieInfo h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+            color: #2c3e50;
+        }
+        #modalMovieInfo p {
+            margin-bottom: 10px;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        #modalMovieInfo p strong {
+            color: #555;
+        }
+        .modal-actions {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end; /* Alinha botões à direita */
+            gap: 10px; /* Espaço entre botões */
+        }
+        .modal-actions button {
+            padding: 10px 20px;
+            font-size: 0.95em;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            border: 1px solid transparent;
+        }
+        #modalWatchLinkButton {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        #modalWatchLinkButton:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        #modalCloseActionButton {
+            background-color: #6c757d;
+            color: white;
+            border-color: #6c757d;
+        }
+        #modalCloseActionButton:hover {
+            background-color: #545b62;
+            border-color: #545b62;
+        }
+        .tmdb-logo {
+            display: inline-block;
+            margin-top: 15px;
+            opacity: 0.7;
+        }
+         .tmdb-logo img {
+            height: 15px; /* Ajuste o tamanho conforme necessário */
+            width: auto;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <h1>Visualizador M3U Avançado</h1>
+    </div>
+
+    <div id="genreFilterBar" class="genre-filter-bar"></div>
+
+    <div class="container">
+        <div class="upload-section">
+            <label for="arquivoM3U">Carregue seu arquivo M3U:</label>
+            <input type="file" id="arquivoM3U" accept=".m3u,.m3u8">
+        </div>
+
+        <h2 id="resultsTitle" class="section-title">Resultados:</h2>
+        <div id="gridContainer" class="grid-container"></div>
+        <p id="status" class="status-message no-content">Nenhum arquivo carregado ainda.</p>
+    </div>
+
+    <div id="movieDetailModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close-button" onclick="closeMovieModal()">&times;</span>
+            <div id="modalMovieInfo">
+                <div class="poster-column">
+                    <img src="" alt="Poster do Filme" class="modal-poster" id="modalPoster">
+                </div>
+                <div class="details-column">
+                    <h2 id="modalTitle"></h2>
+                    <p><strong>Data de Lançamento:</strong> <span id="modalReleaseDate"></span></p>
+                    <p><strong>Avaliação TMDB:</strong> <span id="modalRating"></span></p>
+                    <p><strong>Sinopse:</strong></p>
+                    <p id="modalOverview"></p>
+                     <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" class="tmdb-logo" title="Dados fornecidos por TMDB">
+                        <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB Logo">
+                    </a>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="modalCloseActionButton" onclick="closeMovieModal()">Voltar à Lista</button>
+                <button id="modalWatchLinkButton">Acessar Link do Filme</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ####################################################################
+        // IMPORTANTE: Insira sua chave da API do TMDB aqui!
+        // ####################################################################
+        const TMDB_API_KEY = '270919a410dd89964c9bb5f33b89775b'; 
+        // Exemplo: const TMDB_API_KEY = 'abcdef1234567890abcdef1234567890';
+        // ####################################################################
+
+        let allParsedItems = [];
+        let currentActiveGenre = "Todos";
+        let currentStreamUrlForModal = ''; // Para armazenar o link do filme para o botão do modal
+
+        const genreFilterBar = document.getElementById('genreFilterBar');
+        const gridContainer = document.getElementById('gridContainer');
+        const statusElement = document.getElementById('status');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const fileInputElement = document.getElementById('arquivoM3U');
+        
+        // Elementos do Modal
+        const movieDetailModal = document.getElementById('movieDetailModal');
+        const modalPoster = document.getElementById('modalPoster');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalReleaseDate = document.getElementById('modalReleaseDate');
+        const modalRating = document.getElementById('modalRating');
+        const modalOverview = document.getElementById('modalOverview');
+        const modalWatchLinkButton = document.getElementById('modalWatchLinkButton');
+
+        fileInputElement.addEventListener('change', function(event) { /* ... (código existente sem alterações) ... */ });
+        
+        // Mantém o event listener do input de arquivo como estava...
+        fileInputElement.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            
+            gridContainer.innerHTML = '';
+            genreFilterBar.innerHTML = ''; 
+            allParsedItems = [];
+            currentActiveGenre = "Todos";
+            resultsTitle.textContent = "Resultados:";
+
+            statusElement.textContent = 'Aguardando arquivo...';
+            statusElement.className = 'status-message no-content'; 
+            statusElement.style.display = 'block';
+
+            if (file) {
+                statusElement.textContent = 'Processando arquivo... Por favor, aguarde.';
+                statusElement.className = 'status-message processing';
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    try {
+                        const parsed = parseM3U(content);
+
+                        if (parsed.length > 0) {
+                            parsed.sort(function(a, b) {
+                                const titleA = String(a.title || '').toLowerCase();
+                                const titleB = String(b.title || '').toLowerCase();
+                                if (titleA < titleB) return -1;
+                                if (titleA > titleB) return 1;
+                                return 0;
+                            });
+                        }
+                        allParsedItems = parsed;
+                        
+                        const uniqueGenres = extractAndSortUniqueGenres(allParsedItems);
+                        renderGenreButtons(uniqueGenres);
+                        displayFilteredItems();
+
+                    } catch (error) {
+                        console.error("Erro ao processar o arquivo M3U:", error);
+                        statusElement.textContent = 'Erro ao processar o arquivo M3U.';
+                        statusElement.className = 'status-message error';
+                        statusElement.style.display = 'block';
+                        genreFilterBar.innerHTML = '';
+                    }
+                };
+                reader.onerror = function() { /* ... (código existente sem alterações) ... */ };
+                reader.readAsText(file);
+            } else { /* ... (código existente sem alterações) ... */ }
+        });
+
+
+        function parseM3U(content) {
+            const lines = content.split(/\r\n|\r|\n/);
+            const parsedItems = [];
+            let tempTvgName = null, tempLogo = null, tempMainGroup = null, tempSubGenres = [], tempTvgId = null;
+            const attributeRegex = (attr) => new RegExp(`${attr}="([^"]*)"`, 'i');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('#EXTM3U')) continue;
+
+                if (line.startsWith('#EXTINF:')) {
+                    tempTvgName = null; tempLogo = null; tempMainGroup = null; tempSubGenres = []; tempTvgId = null;
+
+                    let match = line.match(attributeRegex('tvg-name'));
+                    if (match && match[1] && match[1].trim() !== "") tempTvgName = match[1].trim();
+                    
+                    match = line.match(attributeRegex('tvg-logo'));
+                    if (match && match[1]) tempLogo = match[1];
+
+                    match = line.match(attributeRegex('tvg-id')); // Captura tvg-id (TMDB ID)
+                    if (match && match[1]) tempTvgId = match[1].trim();
+
+                    match = line.match(attributeRegex('group-title'));
+                    if (match && match[1]) {
+                        const groupParts = match[1].split('|').map(g => g.trim()).filter(g => g !== "");
+                        if (groupParts.length > 0) {
+                            tempMainGroup = groupParts[0]; 
+                            if (groupParts.length > 1) tempSubGenres = groupParts.slice(1); 
+                        }
+                    }
+                } else if (line && !line.startsWith('#')) { 
+                    const streamUrl = line;
+                    if (tempTvgName && tempMainGroup && tempMainGroup.toLowerCase().includes("filmes") && streamUrl.toLowerCase().endsWith(".mp4")) {
+                        parsedItems.push({
+                            title: tempTvgName,
+                            url: streamUrl,
+                            logo: tempLogo,
+                            genres: tempSubGenres.length > 0 ? tempSubGenres : ["Sem Gênero Específico"],
+                            tmdbId: tempTvgId // Adiciona o tmdbId ao item
+                        });
+                    }
+                    tempTvgName = null; tempLogo = null; tempMainGroup = null; tempSubGenres = []; tempTvgId = null;
+                }
+            }
+            return parsedItems;
+        }
+
+        function extractAndSortUniqueGenres(items) { /* ... (código existente sem alterações) ... */ }
+        function renderGenreButtons(genres) { /* ... (código existente sem alterações) ... */ }
+        function handleGenreClick(genre) { /* ... (código existente sem alterações) ... */ }
+        
+        extractAndSortUniqueGenres = function(items) {
+            const genreSet = new Set();
+            items.forEach(item => {
+                item.genres.forEach(genre => genreSet.add(genre));
+            });
+            return Array.from(genreSet).sort((a,b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+        };
+
+        renderGenreButtons = function(genres) {
+            genreFilterBar.innerHTML = ''; 
+
+            const allButton = document.createElement('button');
+            allButton.textContent = "Todos";
+            allButton.dataset.genre = "Todos";
+            if (currentActiveGenre === "Todos") allButton.classList.add('active');
+            allButton.onclick = () => handleGenreClick("Todos");
+            genreFilterBar.appendChild(allButton);
+
+            genres.forEach(genre => {
+                const btn = document.createElement('button');
+                btn.textContent = genre;
+                btn.dataset.genre = genre;
+                if (currentActiveGenre === genre) btn.classList.add('active');
+                btn.onclick = () => handleGenreClick(genre);
+                genreFilterBar.appendChild(btn);
+            });
+            genreFilterBar.style.display = genres.length > 0 || allParsedItems.length > 0 ? 'block' : 'none';
+        };
+        
+        handleGenreClick = function(genre) {
+            currentActiveGenre = genre;
+            const buttons = genreFilterBar.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.classList.toggle('active', button.dataset.genre === genre);
+            });
+            displayFilteredItems();
+        };
+
+        function displayFilteredItems() {
+            gridContainer.innerHTML = ''; 
+            let itemsToDisplay = currentActiveGenre === "Todos" ? allParsedItems : allParsedItems.filter(item => item.genres.includes(currentActiveGenre));
+            resultsTitle.textContent = `Resultados: ${currentActiveGenre === "Todos" ? "Todos os Filmes" : 'Gênero "' + currentActiveGenre + '"'} (${itemsToDisplay.length})`;
+
+            if (itemsToDisplay.length > 0) {
+                itemsToDisplay.forEach(function(item) {
+                    const card = document.createElement('div');
+                    card.className = 'filme-card';
+
+                    const posterDiv = document.createElement('div');
+                    posterDiv.className = 'filme-poster';
+                    if (item.logo && item.logo.trim() !== "") { /* ... (poster logic) ... */ } 
+                    else { posterDiv.innerHTML = '<span class="poster-placeholder">Capa indisponível</span>'; }
+                     if (item.logo && item.logo.trim() !== "") {
+                        const img = document.createElement('img');
+                        img.src = item.logo;
+                        img.alt = `Capa de ${item.title}`;
+                        img.loading = 'lazy';
+                        img.onerror = function() { this.parentElement.innerHTML = '<span class="poster-placeholder">Capa indisponível</span>'; };
+                        posterDiv.appendChild(img);
+                    }
+
+                    const cardContent = document.createElement('div');
+                    cardContent.className = 'filme-card-content';
+                    const titleElement = document.createElement('h3');
+                    titleElement.className = 'filme-card-titulo';
+                    titleElement.textContent = item.title;
+                    titleElement.title = item.title;
+                    
+                    // Botão "Detalhes" no card
+                    const detailsButton = document.createElement('button'); // Alterado de <a> para <button>
+                    detailsButton.textContent = 'Detalhes';
+                    detailsButton.className = 'filme-card-details-button';
+                    detailsButton.onclick = function(e) {
+                        e.preventDefault();
+                        openMovieModal(item);
+                    };
+
+                    cardContent.appendChild(titleElement);
+                    cardContent.appendChild(detailsButton); // Adiciona o novo botão
+                    card.appendChild(posterDiv);
+                    card.appendChild(cardContent);
+                    gridContainer.appendChild(card);
+                });
+                statusElement.style.display = 'none';
+            } else { /* ... (status message logic) ... */ }
+             if (itemsToDisplay.length === 0){
+                statusElement.textContent = `Nenhum item encontrado para ${currentActiveGenre === "Todos" ? "os critérios aplicados" : 'o gênero "' + currentActiveGenre + '" com os critérios aplicados.'}`;
+                statusElement.className = 'status-message no-content';
+                statusElement.style.display = 'block';
+            }
+            genreFilterBar.style.display = allParsedItems.length > 0 ? 'block' : 'none';
+        }
+
+        // --- Funções do Modal e TMDB ---
+        function openMovieModal(item) {
+            if (!TMDB_API_KEY || TMDB_API_KEY === 'SUA_CHAVE_API_TMDB_AQUI') {
+                alert('Por favor, configure sua chave da API do TMDB no código JavaScript para buscar os detalhes do filme.');
+                // Preenche o modal com informações básicas do M3U se a API não estiver configurada
+                modalTitle.textContent = item.title;
+                modalPoster.src = item.logo || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // Imagem transparente
+                modalPoster.alt = item.title;
+                modalOverview.textContent = 'Detalhes do TMDB não disponíveis. Chave da API não configurada.';
+                modalReleaseDate.textContent = 'N/A';
+                modalRating.textContent = 'N/A';
+                movieDetailModal.classList.add('show');
+                currentStreamUrlForModal = item.url; // Guarda a URL para o botão "Acessar Link"
+                return;
+            }
+
+            // Limpa e mostra "Carregando..."
+            modalTitle.textContent = 'Carregando...';
+            modalPoster.src = item.logo || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // Placeholder enquanto carrega
+            modalPoster.alt = "Carregando poster";
+            modalOverview.textContent = 'Buscando informações no TMDB...';
+            modalReleaseDate.textContent = '...';
+            modalRating.textContent = '...';
+            movieDetailModal.classList.add('show');
+            currentStreamUrlForModal = item.url;
+
+            fetchMovieDetailsFromTMDB(item);
+        }
+
+        function closeMovieModal() {
+            movieDetailModal.classList.remove('show');
+        }
+
+        modalWatchLinkButton.onclick = function() {
+            if (currentStreamUrlForModal) {
+                window.open(currentStreamUrlForModal, '_blank');
+            }
+        };
+
+        // Fecha o modal se clicar fora do conteúdo (no overlay)
+        movieDetailModal.addEventListener('click', function(event) {
+            if (event.target === movieDetailModal) {
+                closeMovieModal();
+            }
+        });
+        // Fecha o modal com a tecla Escape
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape" && movieDetailModal.classList.contains('show')) {
+                closeMovieModal();
+            }
+        });
+
+
+        async function fetchMovieDetailsFromTMDB(item) {
+            let searchTitle = item.title;
+            let searchYear = '';
+
+            // Tenta extrair ano do título no formato "Nome do Filme (YYYY)"
+            const titleYearMatch = item.title.match(/(.+?)(?:\s\((\d{4})\))?$/);
+            if (titleYearMatch) {
+                searchTitle = titleYearMatch[1].trim(); // Nome do filme sem o ano
+                if (titleYearMatch[2]) {
+                    searchYear = titleYearMatch[2]; // Ano
+                }
+            }
+            
+            let fetchUrl;
+            // Se tivermos um TMDB ID do M3U, usamos a busca direta (mais precisa)
+            if (item.tmdbId) {
+                fetchUrl = `https://api.themoviedb.org/3/movie/${item.tmdbId}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=credits`;
+            } else {
+                // Senão, buscamos por título e ano
+                fetchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(searchTitle)}&language=pt-BR`;
+                if (searchYear) {
+                    fetchUrl += `&year=${searchYear}`;
+                }
+            }
+
+            try {
+                const response = await fetch(fetchUrl);
+                if (!response.ok) {
+                    throw new Error(`Erro na API TMDB: ${response.status} ${response.statusText}`);
+                }
+                const data = await response.json();
+
+                let movieDetails = null;
+                if (item.tmdbId) { // Se buscou por ID, 'data' já são os detalhes
+                    movieDetails = data;
+                } else if (data.results && data.results.length > 0) { // Se buscou por nome, pega o primeiro resultado
+                     // Para maior precisão, podemos buscar detalhes do primeiro resultado encontrado
+                    const firstResultId = data.results[0].id;
+                    const detailResponse = await fetch(`https://api.themoviedb.org/3/movie/${firstResultId}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=credits`);
+                    if (!detailResponse.ok) throw new Error('Erro ao buscar detalhes do filme encontrado.');
+                    movieDetails = await detailResponse.json();
+                }
+
+                if (movieDetails && movieDetails.id) { // Verifica se 'id' existe para confirmar que é um objeto de filme válido
+                    modalTitle.textContent = movieDetails.title || searchTitle; // Usa o título do TMDB ou o original
+                    modalPoster.src = movieDetails.poster_path ? `https://image.tmdb.org/t/p/w500${movieDetails.poster_path}` : (item.logo || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+                    modalPoster.alt = `Poster de ${movieDetails.title || searchTitle}`;
+                    modalOverview.textContent = movieDetails.overview || 'Sinopse não disponível.';
+                    modalReleaseDate.textContent = movieDetails.release_date ? new Date(movieDetails.release_date).toLocaleDateString('pt-BR') : 'N/A';
+                    modalRating.textContent = movieDetails.vote_average ? `${movieDetails.vote_average.toFixed(1)}/10 (${movieDetails.vote_count} votos)` : 'N/A';
+                } else {
+                    populateModalWithFallback(item, 'Filme não encontrado no TMDB com os dados fornecidos.');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar dados do TMDB:', error);
+                populateModalWithFallback(item, `Erro ao buscar dados: ${error.message}. Verifique o console.`);
+            }
+        }
+        
+        function populateModalWithFallback(item, message) {
+            modalTitle.textContent = item.title;
+            modalPoster.src = item.logo || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            modalPoster.alt = item.title;
+            modalOverview.textContent = message || 'Detalhes não puderam ser carregados.';
+            modalReleaseDate.textContent = 'N/A';
+            modalRating.textContent = 'N/A';
+        }
+
+    </script>
+</body>
+</html>
